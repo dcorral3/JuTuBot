@@ -59,7 +59,8 @@ class Controller:
             'logger': MyLogger(),
             'progress_hooks': [my_hook],
         }
-
+        message_info = bot.send_message(chat_id=chat_id, text='Downloading...',
+                                        disable_notification='True')
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
         tmp_out_file += '.mp3'
@@ -75,8 +76,15 @@ class Controller:
                 title = data['title']
                 performer = None
 
+        bot.editMessageText(chat_id=chat_id, message_id=message_info['message_id'],
+                         text='Sending...',
+                         disable_notification='True')
+        bot.send_chat_action(
+            chat_id=chat_id, action='record_audio', timeout=10)
         bot.send_audio(chat_id=chat_id, audio=open(tmp_out_file, 'rb'),
-                       title=title, performer=performer, 
+                       title=title, performer=performer,
                        caption="Via -> @Jutubot", timeout=1000)
+        bot.delete_message(
+            chat_id=chat_id, message_id=message_info['message_id'])
         os.remove(tmp_out_file)
         os.remove(info_file)
