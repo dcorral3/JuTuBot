@@ -33,9 +33,10 @@ class MyLogger(object):
 
 
 class Controller:
-    
+
     def __init__(self):
-        os.mkdir(tmp_file)
+        if not os.path.exists(tmp_file):
+            os.mkdir(tmp_file)
 
     def start(self, bot, update):
         update.message.reply_text("Send me a valid Youtube URL: ")
