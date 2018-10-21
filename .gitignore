@@ -1,0 +1,4 @@
+config.py
+/tmp
+__pycache__
+.vscode/
