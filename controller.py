@@ -6,6 +6,7 @@ import shutil
 from config import tmp_file
 import telegram
 from model import DB
+import datetime
 
 
 def my_hook(d):
@@ -17,10 +18,23 @@ def my_hook(d):
         sys.stdout.flush()
 
 
-def readJSON(file=''):
+def readJSON(file):
     with open(file) as f:
         data = json.load(f)
     return data
+
+
+def parseInfoFile(file):
+    data = readJSON(file)
+    return {
+        'track': data['track'],
+        'artist': data['artist'],
+        'title': data['title'],
+        'url': data['webpage_url'],
+        'timestamp': datetime.datetime.utcnow()
+    }
+
+
 
 
 class MyLogger(object):
@@ -74,12 +88,14 @@ class Controller:
                 'logger': MyLogger(),
                 'progress_hooks': [my_hook],
             }
-            message_info = bot.send_message(chat_id=chat_id, text='Downloading...',
+            message_info = bot.send_message(chat_id=chat_id,
+                                            text='Downloading...',
                                             disable_notification='True')
+
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
             tmp_out_file += '.mp3'
-            data = readJSON(info_file)
+            data = parseInfoFile(info_file)
             title = data['track']
             performer = data['artist']
             if not data['track']:
@@ -91,16 +107,27 @@ class Controller:
                     title = data['title']
                     performer = None
 
-            bot.editMessageText(chat_id=chat_id, message_id=message_info['message_id'],
+            bot.editMessageText(chat_id=chat_id,
+                                message_id=message_info['message_id'],
                                 text='Sending...',
                                 disable_notification='True')
-            bot.send_chat_action(
-                chat_id=chat_id, action='record_audio', timeout=10)
-            audio_file = bot.send_audio(chat_id=chat_id, audio=open(tmp_out_file, 'rb'),
-                                        title=title, performer=performer,
-                                        caption="Via -> @Jutubot", timeout=1000)
 
-            bot.delete_message(
-                chat_id=chat_id, message_id=message_info['message_id'])
+            bot.send_chat_action(chat_id=chat_id,
+                                 action='record_audio',
+                                 timeout=10)
+
+            audio_file = bot.send_audio(chat_id=chat_id,
+                                        audio=open(tmp_out_file, 'rb'),
+                                        title=title, performer=performer,
+                                        caption="Via -> @Jutubot",
+                                        timeout=1000)
+
+            bot.delete_message(chat_id=chat_id,
+                               message_id=message_info['message_id'])
+
             os.remove(tmp_out_file)
             os.remove(info_file)
+
+            self.db.add_to_history(chat_id, data)
+            history = self.db.get_history(chat_id)
+            print(history)
