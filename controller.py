@@ -3,7 +3,7 @@ import os
 import sys
 import json
 import shutil
-from config import tmp_file
+from config import db_file, TOKEN
 import telegram
 from model import DB
 import datetime
@@ -26,15 +26,18 @@ def readJSON(file):
 
 def parseInfoFile(file):
     data = readJSON(file)
-    return {
-        'track': data['track'],
-        'artist': data['artist'],
-        'title': data['title'],
-        'url': data['webpage_url'],
-        'timestamp': datetime.datetime.utcnow()
-    }
-
-
+    title = data['track']
+    performer = data['artist']
+    if not data['track']:
+        tmp = data['title'].split('-')
+        if len(tmp) == 2:
+            title = tmp[1].strip()
+            performer = tmp[0].strip()
+        else:
+            title = data['title']
+            performer = None
+    return {'performer': performer,
+            'title': title}
 
 
 class MyLogger(object):
@@ -52,8 +55,8 @@ class Controller:
 
     def __init__(self):
         self.db = DB()
-        if not os.path.exists(tmp_file):
-            os.mkdir(tmp_file)
+        if not os.path.exists(db_file):
+            os.mkdir(db_file)
 
     def start(self, bot, update):
         user_id = update.message.chat_id
@@ -72,62 +75,62 @@ class Controller:
             update.message.reply_text("Send me a valid Youtube URL: ")
         else:
             chat_id = update.message.chat_id
-            file_name = str(chat_id)
-            tmp_out_file = tmp_file + file_name
-            info_file = tmp_file + file_name + '.info.json'
+            dt = datetime.datetime.now().strftime("%s")
+            out_file = db_file + str(chat_id) + dt
+            info_file = out_file + '.info.json'
             url = update.message.text
-            ydl_opts = {
-                'outtmpl': tmp_out_file + '.%(ext)s',
-                'writeinfojson': info_file,
-                'format': 'bestaudio',
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                }],
-                'logger': MyLogger(),
-                'progress_hooks': [my_hook],
-            }
-            message_info = bot.send_message(chat_id=chat_id,
-                                            text='Downloading...',
-                                            disable_notification='True')
+            audio_file = self.db.get_file(url)
+            if audio_file:
+                file_record = audio_file
+                # slef.db.update_record(url)
+            else:
+                ydl_opts = {
+                    'outtmpl': out_file + '.%(ext)s',
+                    'writeinfojson': info_file,
+                    'format': 'bestaudio',
+                    'postprocessors': [{
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'mp3',
+                        'preferredquality': '192',
+                    }],
+                    'logger': MyLogger(),
+                    'progress_hooks': [my_hook],
+                }
+                message_info = bot.send_message(chat_id=chat_id,
+                                                text='Downloading...',
+                                                disable_notification='True')
 
-            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
-            tmp_out_file += '.mp3'
-            data = parseInfoFile(info_file)
-            title = data['track']
-            performer = data['artist']
-            if not data['track']:
-                tmp = data['title'].split('-')
-                if len(tmp) == 2:
-                    title = tmp[1].strip()
-                    performer = tmp[0].strip()
-                else:
-                    title = data['title']
-                    performer = None
+                with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([url])
 
-            bot.editMessageText(chat_id=chat_id,
-                                message_id=message_info['message_id'],
-                                text='Sending...',
-                                disable_notification='True')
+                out_file += '.mp3'
+                data = parseInfoFile(info_file)
+                file_record = {'_id': url,
+                               'file_path': out_file,
+                               'last_download': dt,
+                               'download_count': 0,
+                               **data}
+
+                bot.editMessageText(chat_id=chat_id,
+                                    message_id=message_info['message_id'],
+                                    text='Sending...',
+                                    disable_notification='True')
 
             bot.send_chat_action(chat_id=chat_id,
                                  action='record_audio',
                                  timeout=10)
 
-            audio_file = bot.send_audio(chat_id=chat_id,
-                                        audio=open(tmp_out_file, 'rb'),
-                                        title=title, performer=performer,
-                                        caption="Via -> @Jutubot",
-                                        timeout=1000)
+            bot.send_audio(chat_id=chat_id,
+                           audio=open(file_record['file_path'], 'rb'),
+                           title=file_record['title'],
+                           performer=file_record['performer'],
+                           caption="Via -> @Jutubot",
+                           timeout=1000)
 
-            bot.delete_message(chat_id=chat_id,
-                               message_id=message_info['message_id'])
-
-            os.remove(tmp_out_file)
-            os.remove(info_file)
-
-            self.db.add_to_history(chat_id, data)
-            history = self.db.get_history(chat_id)
-            print(history)
+            if audio_file == None:
+                bot.delete_message(chat_id=chat_id,
+                                   message_id=message_info['message_id'])
+                os.remove(info_file)
+            self.db.insert_file_record(file_record)
+            self.db.add_to_history(chat_id, file_record)
+            self.db.get_history(chat_id)

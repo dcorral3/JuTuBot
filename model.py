@@ -21,13 +21,16 @@ class DB:
         return self.db.users.find_one({'_id': user_id})
 
     def add_to_history(self, user_id, data):
-        history_record = {'url': data['url'], 'timestamp': data['timestamp']}
         self.db.users.update_one({'_id': user_id},
-                                 {'$addToSet': {'history': history_record}}, 
+                                 {'$addToSet': {'history': data}}, 
                                  upsert=True)
 
     def get_history(self, user_id):
         data = self.db.users.find({"_id": user_id}, {"_id": 0})
-        data = data[0]["history"]
-        return data
+        return data[0]["history"]
     
+    def insert_file_record(self, data):
+        return self.db.files.insert_one(data)
+    
+    def get_file(self, url):
+        return self.db.files.find_one({"_id": url})
