@@ -23,6 +23,8 @@ class DB:
         return self.db.users.find_one({'_id': user_id})
 
     def add_to_history(self, user_id, data):
+        del data['download_count']
+        del data['last_download']
         self.db.users.update_one({'_id': user_id},
                                  {'$addToSet': {'history': data}},
                                  upsert=True)
