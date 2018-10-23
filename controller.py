@@ -87,19 +87,26 @@ class Controller:
         if not os.path.exists(db_file):
             os.mkdir(db_file)
 
+    def user_exists(self, user_id, user_name):
+        user = self.db.get_user(user_id)
+        if not user:
+            self.db.insert_user(user_id, user_name)
+            return False
+        return True
+
     def start(self, bot, update):
         user_id = update.message.chat_id
-        user = self.db.get_user(user_id)
         user_name = update.message.from_user.first_name
-        if not user:
-            user = self.db.insert_user(user_id, user_name)
+        if self.user_exists(user_id, user_name):
+            update.message.reply_text("Send me a valid Youtube URL: ")
+        else:
             update.message.reply_text(
                 "Wellcome {}.\nSend me a valid Youtube URL: ".format(user_name))
-        else:
-            update.message.reply_text("Send me a valid Youtube URL: ")
 
     def url_message(self, bot, update):
         chat_id = update.message.chat_id
+        user_name = update.message.from_user.first_name
+        self.user_exists(chat_id, user_name)
         dt = datetime.datetime.now().strftime("%s")
         out_file = db_file + str(chat_id) + dt
         info_file = out_file + '.info.json'
@@ -172,6 +179,8 @@ class Controller:
             bot.delete_message(chat_id=chat_id,
                                message_id=message_info['message_id'])
             os.remove(info_file)
-        self.db.insert_file_record(file_record)
         self.db.add_to_history(chat_id, file_record)
-        self.db.get_history(chat_id)
+        try:
+            self.db.insert_file_record(file_record)
+        except:
+            pass
