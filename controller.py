@@ -119,14 +119,16 @@ class Controller:
             bot.send_chat_action(chat_id=chat_id,
                                  action='record_audio',
                                  timeout=10)
+            tmp_send_file = db_file+file_record['title']+'.mp3'
+            shutil.copyfile(file_record['file_path'], tmp_send_file)
 
             bot.send_audio(chat_id=chat_id,
-                           audio=open(file_record['file_path'], 'rb'),
+                           audio=open(tmp_send_file, 'rb'),
                            title=file_record['title'],
                            performer=file_record['performer'],
                            caption="Via -> @Jutubot",
                            timeout=1000)
-
+            os.remove(tmp_send_file)
             if audio_file == None:
                 bot.delete_message(chat_id=chat_id,
                                    message_id=message_info['message_id'])
