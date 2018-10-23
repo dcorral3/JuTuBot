@@ -67,11 +67,10 @@ class Controller:
 
     def start(self, bot, update):
         user_id = update.message.chat_id
-        user = self.db.get_user(user_id)
-        if update.message.from_user.first_name:
-            user_name = update.message.from_user.first_name
+        user = self.db.get_user(user_id)    
+        user_name = update.message.from_user.first_name
         if not user:
-            user = self.db.insert_user(user_id)
+            user = self.db.insert_user(user_id, user_name)
             update.message.reply_text(
                 "Wellcome {}.\nSend me a valid Youtube URL: ".format(user_name))
         else:

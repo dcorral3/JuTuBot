@@ -12,9 +12,10 @@ class DB:
             authSource=dbconf.authSource
         )[dbconf.authSource]
 
-    def insert_user(self, user_id):
+    def insert_user(self, user_id, first_name):
         return self.db.users.insert_one({
             '_id': user_id,
+            'first_name': first_name,
             'history': []
         })
 
