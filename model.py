@@ -1,5 +1,6 @@
 from pymongo import MongoClient
 import dbconf
+import datetime
 
 
 class DB:
@@ -22,15 +23,23 @@ class DB:
 
     def add_to_history(self, user_id, data):
         self.db.users.update_one({'_id': user_id},
-                                 {'$addToSet': {'history': data}}, 
+                                 {'$addToSet': {'history': data}},
                                  upsert=True)
 
     def get_history(self, user_id):
         data = self.db.users.find({"_id": user_id}, {"_id": 0})
         return data[0]["history"]
-    
+
     def insert_file_record(self, data):
         return self.db.files.insert_one(data)
-    
+
     def get_file(self, url):
         return self.db.files.find_one({"_id": url})
+
+    def update_record(self, url):
+        dt = datetime.datetime.now().strftime("%s")
+        self.db.files.update_one(
+            {'_id': url},
+            {'$inc': {'download_count': +1},
+             '$set': {'last_download': dt}},
+            upsert=True)

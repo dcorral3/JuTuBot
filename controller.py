@@ -82,7 +82,7 @@ class Controller:
             audio_file = self.db.get_file(url)
             if audio_file:
                 file_record = audio_file
-                # slef.db.update_record(url)
+                self.db.update_record(url)
             else:
                 ydl_opts = {
                     'outtmpl': out_file + '.%(ext)s',
@@ -108,7 +108,7 @@ class Controller:
                 file_record = {'_id': url,
                                'file_path': out_file,
                                'last_download': dt,
-                               'download_count': 0,
+                               'download_count': 1,
                                **data}
 
                 bot.editMessageText(chat_id=chat_id,
