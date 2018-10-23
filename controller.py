@@ -7,6 +7,7 @@ from config import db_file, TOKEN
 import telegram
 from model import DB
 import datetime
+from mutagen.easyid3 import EasyID3
 
 
 def my_hook(d):
@@ -49,6 +50,12 @@ class MyLogger(object):
 
     def error(self, msg):
         print(msg)
+
+
+def tag_file(file, file_record):
+    audio = EasyID3(file)
+    audio["artist"] = file_record['performer']
+    audio.save(file)
 
 
 class Controller:
@@ -121,6 +128,7 @@ class Controller:
                                  timeout=10)
             tmp_send_file = db_file+file_record['title']+'.mp3'
             shutil.copyfile(file_record['file_path'], tmp_send_file)
+            tag_file(tmp_send_file, file_record)
 
             bot.send_audio(chat_id=chat_id,
                            audio=open(tmp_send_file, 'rb'),
