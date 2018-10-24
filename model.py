@@ -27,6 +27,9 @@ class DB:
         del tmp['download_count']
         del tmp['last_download']
         del tmp['t_audio']
+        del tmp['_id']
+        tmp['url_id'] = data['_id']
+        tmp['_id'] = data['last_download']
         self.db.users.update_one({'_id': user_id},
                                  {'$addToSet': {'history': tmp}},
                                  upsert=True)

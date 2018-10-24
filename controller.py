@@ -196,11 +196,11 @@ class Controller:
 
             file_record['t_audio'] = t_audio.to_dict()
 
-        os.remove(tmp_send_file)
-        os.remove(out_file)
-        if audio_file == None:
+            os.remove(tmp_send_file)
+            os.remove(out_file)
             bot.delete_message(chat_id=chat_id,
                                message_id=message_info['message_id'])
+        
         self.db.add_to_history(chat_id, file_record)
         try:
             self.db.insert_file_record(file_record)
