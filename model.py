@@ -23,10 +23,11 @@ class DB:
         return self.db.users.find_one({'_id': user_id})
 
     def add_to_history(self, user_id, data):
-        del data['download_count']
-        del data['last_download']
+        tmp = data.copy()
+        del tmp['download_count']
+        del tmp['last_download']
         self.db.users.update_one({'_id': user_id},
-                                 {'$addToSet': {'history': data}},
+                                 {'$addToSet': {'history': tmp}},
                                  upsert=True)
 
     def get_history(self, user_id):
@@ -43,6 +44,6 @@ class DB:
         dt = datetime.datetime.now().strftime("%s")
         self.db.files.update_one(
             {'_id': url},
-            {'$inc': {'download_count': +1},
+            {'$inc': {'download_count': 1},
              '$set': {'last_download': dt}},
             upsert=True)

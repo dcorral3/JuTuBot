@@ -39,8 +39,12 @@ def parseInfoFile(file):
         else:
             title = data['title']
             performer = None
-    return {'performer': performer,
-            'title': title}
+    return {'_id': data['id'],
+            'url': data['webpage_url'],
+            'performer': performer,
+            'title': title,
+            'duration': data['duration'],
+            'filesize': data['filesize']}
 
 
 class MyLogger(object):
@@ -56,17 +60,16 @@ class MyLogger(object):
 
 def tag_file(file, file_record):
     audio = EasyID3(file)
-    audio["artist"] = file_record['performer']
+    if file_record['performer']:
+        audio["artist"] = file_record['performer']
     audio.save(file)
 
 
-def get_url(url):
+def get_url_id(url):
     url = re.findall(r'(https?://\S+)', url)[0]
-    print(url)
     if url:
         url_id = get_id(url)
-        print(url_id)
-        return url, url_id
+        return url_id
     raise Exception("no url found")
 
 
@@ -112,17 +115,20 @@ class Controller:
         info_file = out_file + '.info.json'
 
         try:
-            url, url_id = get_url(update.message.text)
+            url_id = get_url_id(update.message.text)
         except:
             bot.send_message(chat_id=chat_id,
                              text="Ups!\nSeems something went wrong while downloading the song\nCheck you sent me a valid youtube link")
-
         audio_file = self.db.get_file(url_id)
         if audio_file:
             file_record = audio_file
             self.db.update_record(url_id)
         else:
+            message_info = bot.send_message(chat_id=chat_id,
+                                            text='Processing...',
+                                            disable_notification='True')
             ydl_opts = {
+                'skip_download': True,
                 'outtmpl': out_file + '.%(ext)s',
                 'writeinfojson': info_file,
                 'format': 'bestaudio',
@@ -132,25 +138,36 @@ class Controller:
                     'preferredquality': '192',
                 }],
                 'logger': MyLogger(),
-                'progress_hooks': [my_hook],
+                'progress_hooks': [my_hook]
             }
-            message_info = bot.send_message(chat_id=chat_id,
-                                            text='Downloading...',
-                                            disable_notification='True')
-
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 try:
-                    ydl.download([url])
+                    ydl.download([url_id])
                 except Exception as e:
                     print(str(e))
                     bot.editMessageText(chat_id=chat_id,
                                         message_id=message_info['message_id'],
                                         text="Ups!\nSeems something went wrong while downloading the song\nCheck you sent me a valid youtube link")
-
             out_file += '.mp3'
             data = parseInfoFile(info_file)
+            os.remove(info_file)
+
+            del ydl_opts['skip_download']
+
+            bot.editMessageText(chat_id=chat_id,
+                            message_id=message_info['message_id'],
+                            text='Downloading...')
+
+            with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+                try:
+                    ydl.download([data['url']])
+                except Exception as e:
+                    print(str(e))
+                    bot.editMessageText(chat_id=chat_id,
+                                        message_id=message_info['message_id'],
+                                        text="Ups!\nSeems something went wrong while downloading the song\nCheck you sent me a valid youtube link")
+            
             file_record = {'_id': url_id,
-                           'url': url,
                            'file_path': out_file,
                            'last_download': dt,
                            'download_count': 1,
@@ -167,12 +184,12 @@ class Controller:
         tmp_send_file = db_file+file_record['title']+'.mp3'
         shutil.copyfile(file_record['file_path'], tmp_send_file)
         tag_file(tmp_send_file, file_record)
-
+        filesize = ((int(float(file_record['filesize']))/1048576))
         bot.send_audio(chat_id=chat_id,
                        audio=open(tmp_send_file, 'rb'),
                        title=file_record['title'],
                        performer=file_record['performer'],
-                       caption="Via -> @Jutubot",
+                       caption="File size: {0:.2f} MB\nVia -> @Jutubot".format(filesize),
                        timeout=1000)
         os.remove(tmp_send_file)
         if audio_file == None:
