@@ -11,21 +11,10 @@ from mutagen.easyid3 import EasyID3
 import re
 from urllib.parse import urlparse, parse_qs
 
-
-def my_hook(d):
-    downloadMB = (int(float(d['downloaded_bytes']))/1048576)
-    if d['status'] == 'finished':
-        print('\nDone downloading, now converting ...')
-    elif d['status'] == 'downloading':
-        sys.stdout.write('\rdownloading {0:.2f} MB'.format(downloadMB))
-        sys.stdout.flush()
-
-
 def readJSON(file):
     with open(file) as f:
         data = json.load(f)
     return data
-
 
 def parseInfoFile(file):
     data = readJSON(file)
@@ -46,24 +35,11 @@ def parseInfoFile(file):
             'duration': data['duration'],
             'filesize': data['filesize']}
 
-
-class MyLogger(object):
-    def debug(self, msg):
-        pass
-
-    def warning(self, msg):
-        pass
-
-    def error(self, msg):
-        print(msg)
-
-
 def tag_file(file, file_record):
     audio = EasyID3(file)
     if file_record['performer']:
         audio["artist"] = file_record['performer']
     audio.save(file)
-
 
 def get_url_id(url):
     url = re.findall(r'(https?://\S+)', url)[0]
@@ -71,7 +47,6 @@ def get_url_id(url):
         url_id = get_id(url)
         return url_id
     raise Exception("no url found")
-
 
 def get_id(url):
     u_pars = urlparse(url)
@@ -81,7 +56,6 @@ def get_id(url):
     pth = u_pars.path.split('/')
     if pth:
         return pth[-1]
-
 
 class Controller:
 
@@ -136,9 +110,7 @@ class Controller:
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
                     'preferredquality': '192',
-                }],
-                'logger': MyLogger(),
-                'progress_hooks': [my_hook]
+                }]
             }
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 try:
@@ -180,7 +152,8 @@ class Controller:
 
         bot.send_chat_action(chat_id=chat_id,
                              action='record_audio',
-                             timeout=10)
+                             timeout=100)
+                             
         tmp_send_file = db_file+file_record['title']+'.mp3'
         shutil.copyfile(file_record['file_path'], tmp_send_file)
         tag_file(tmp_send_file, file_record)
