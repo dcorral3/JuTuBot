@@ -10,6 +10,8 @@ import datetime
 from mutagen.easyid3 import EasyID3
 import re
 from urllib.parse import urlparse, parse_qs
+from telegram.ext.dispatcher import run_async
+
 
 
 def my_hook(d):
@@ -96,7 +98,7 @@ class Controller:
             self.db.insert_user(user_id, user_name)
             return False
         return True
-
+    @run_async
     def start(self, bot, update):
         user_id = update.message.chat_id
         user_name = update.message.from_user.first_name
@@ -105,7 +107,7 @@ class Controller:
         else:
             update.message.reply_text(
                 "Wellcome {}.\nSend me a valid Youtube URL: ".format(user_name))
-
+    @run_async
     def url_message(self, bot, update):
         chat_id = update.message.chat_id
         user_name = update.message.from_user.first_name
