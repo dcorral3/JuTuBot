@@ -91,13 +91,15 @@ class Controller:
         self.db = DB()
         if not os.path.exists(db_file):
             os.mkdir(db_file)
-
+    
+    @run_async
     def user_exists(self, user_id, user_name):
         user = self.db.get_user(user_id)
         if not user:
             self.db.insert_user(user_id, user_name)
             return False
         return True
+
     @run_async
     def start(self, bot, update):
         user_id = update.message.chat_id
